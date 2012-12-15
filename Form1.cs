@@ -32,7 +32,11 @@ namespace Kopi
 			column.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
 			column.CellTemplate = cell;
 			folderGrid.Columns.Add(column);
-
+			DataGridViewCheckBoxColumn column2 = new DataGridViewCheckBoxColumn();
+			column2.Name = "Enabled";
+			column2.HeaderText = "Enabled";
+			column2.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+			folderGrid.Columns.Add(column2);
 			// set initial GUI state
 			buttonCancel.Enabled = false;
 			textBoxLog.Text = "Add pairs of source and destination folders by clicking in the cells, or load a pre-saved config.";
@@ -48,7 +52,10 @@ namespace Kopi
 			Settings settings = new Settings();
 			for (int row = 0; row < folderGrid.RowCount - 1; ++row)
 			{
-				settings.Mappings.Add(new Mapping(folderGrid[0, row].Value.ToString(), folderGrid[1, row].Value.ToString()));
+				if ((bool)folderGrid[2, row].Value)
+				{
+					settings.Mappings.Add(new Mapping(folderGrid[0, row].Value.ToString(), folderGrid[1, row].Value.ToString()));
+				}
 			}
 
 			// Start the copyer thread
@@ -104,6 +111,12 @@ namespace Kopi
 						// index the row before the entry row, so subtract 2 from count rather than the usual 1
 						folderGrid[0, folderGrid.Rows.Count - 2].Value = rowValues[0];
 						folderGrid[1, folderGrid.Rows.Count - 2].Value = rowValues[1];
+						bool enabled = false;
+						if (rowValues.Count() > 2)
+						{
+							enabled = bool.Parse(rowValues[2]);
+						}
+						folderGrid[2, folderGrid.Rows.Count - 2].Value = enabled;
 					}
 				}
 			}
@@ -122,7 +135,7 @@ namespace Kopi
 					// don't save the default new entry row, so don't iterate over the last row
 					for (int row = 0; row < folderGrid.RowCount - 1; ++row)
 					{
-						config += folderGrid[0, row].Value + "|" + folderGrid[1, row].Value + "\n";
+						config += folderGrid[0, row].Value + "|" + folderGrid[1, row].Value + "|" + folderGrid[2, row].Value + "\r\n";
 					}
 					System.IO.File.WriteAllText(sfd.FileName, config);
 				}

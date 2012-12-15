@@ -54,12 +54,12 @@
 			this.textBoxLog.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-			this.textBoxLog.Location = new System.Drawing.Point(1, 212);
+			this.textBoxLog.Location = new System.Drawing.Point(1, 283);
 			this.textBoxLog.Multiline = true;
 			this.textBoxLog.Name = "textBoxLog";
 			this.textBoxLog.ReadOnly = true;
 			this.textBoxLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-			this.textBoxLog.Size = new System.Drawing.Size(481, 339);
+			this.textBoxLog.Size = new System.Drawing.Size(481, 268);
 			this.textBoxLog.TabIndex = 6;
 			// 
 			// buttonCancel
@@ -89,7 +89,7 @@
 			this.folderGrid.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
 			this.folderGrid.Location = new System.Drawing.Point(8, 51);
 			this.folderGrid.Name = "folderGrid";
-			this.folderGrid.Size = new System.Drawing.Size(466, 155);
+			this.folderGrid.Size = new System.Drawing.Size(466, 226);
 			this.folderGrid.TabIndex = 5;
 			// 
 			// buttonLoad

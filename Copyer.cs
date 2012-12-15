@@ -202,6 +202,13 @@ namespace Kopi
 						dstDT = dstFileInfo.LastWriteTime;
 					}
 
+					// This will copy back the dst file times to the src, in the case where the src has had theirs reset by Box.com or something.
+					//if (srcFileInfo.Length == dstFileInfo.Length && srcFileInfo.LastWriteTime != dstFileInfo.LastWriteTime)
+					//{
+					//    File.SetCreationTime(a_src, dstFileInfo.CreationTime);
+					//    File.SetLastWriteTime(a_src, dstFileInfo.LastWriteTime);
+					//}
+					//else
 					if (srcDT != dstDT || srcFileInfo.Length != dstFileInfo.Length)
 					{
 						Log("Updating \"" + a_dst + "\".");
