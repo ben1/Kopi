@@ -38,6 +38,12 @@ namespace Kopi
 			column2.HeaderText = "Enabled";
 			column2.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
 			folderGrid.Columns.Add(column2);
+            column2 = new DataGridViewCheckBoxColumn();
+            column2.Name = "Ignore Timestamp";
+            column2.HeaderText = "Ignore Timestamp";
+            column2.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            folderGrid.Columns.Add(column2);
+
 			// set initial GUI state
 			buttonCancel.Enabled = false;
 			textBoxLog.Text = "Add pairs of source and destination folders by clicking in the cells, or load a pre-saved config.";
@@ -54,7 +60,7 @@ namespace Kopi
 			{
 				if ((bool)folderGrid[2, row].Value)
 				{
-					settings.Mappings.Add(new Mapping(folderGrid[0, row].Value.ToString(), folderGrid[1, row].Value.ToString()));
+					settings.Mappings.Add(new Mapping(folderGrid[0, row].Value.ToString(), folderGrid[1, row].Value.ToString(), (bool)folderGrid[3, row].Value));
 				}
 			}
 
@@ -117,7 +123,13 @@ namespace Kopi
 							enabled = bool.Parse(rowValues[2]);
 						}
 						folderGrid[2, folderGrid.Rows.Count - 2].Value = enabled;
-					}
+                        bool ignoreTimestamp = false;
+                        if (rowValues.Count() > 3)
+                        {
+                            ignoreTimestamp = bool.Parse(rowValues[3]);
+                        }
+                        folderGrid[3, folderGrid.Rows.Count - 2].Value = ignoreTimestamp;
+                    }
 				}
 			}
 		}
@@ -135,7 +147,7 @@ namespace Kopi
 					// don't save the default new entry row, so don't iterate over the last row
 					for (int row = 0; row < folderGrid.RowCount - 1; ++row)
 					{
-						config += folderGrid[0, row].Value + "|" + folderGrid[1, row].Value + "|" + folderGrid[2, row].Value + "\r\n";
+                        config += folderGrid[0, row].Value + "|" + folderGrid[1, row].Value + "|" + folderGrid[2, row].Value + "|" + folderGrid[3, row].Value + "\r\n";
 					}
 					System.IO.File.WriteAllText(sfd.FileName, config);
 				}

@@ -23,6 +23,9 @@ Settings for maximum space usage and heuristic for automatically deleting files.
 DONE
 ================================================================================
 
+ignore desktop.ini files and have an option to ignore timestamp
+
+
 Algorithm
 ---------
 If file/folder exists on A and not on B, copy entire contents to B.

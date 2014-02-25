@@ -71,7 +71,7 @@ namespace Kopi
 		{
 			foreach (Mapping mapping in m_settings.Mappings)
 			{
-				CompareFolders(mapping.Source, mapping.Destination);
+				CompareFolders(mapping, mapping.Source, mapping.Destination);
 			}
 			if (m_stop)
 			{
@@ -97,7 +97,7 @@ namespace Kopi
 			m_logDelegate(a_str);
 		}
 
-		private void CompareFolders(string a_src, string a_dst)
+		private void CompareFolders(Mapping a_mapping, string a_src, string a_dst)
 		{
 			if (m_stop)
 			{
@@ -129,7 +129,7 @@ namespace Kopi
 					}
 					foreach(string file in uniqueFiles)
 					{
-						CompareFiles(Path.Combine(a_src, file), Path.Combine(a_dst, file));
+						CompareFiles(a_mapping, Path.Combine(a_src, file), Path.Combine(a_dst, file));
 					}
 
 					// recurse all folders in a_src and a_dst
@@ -156,7 +156,7 @@ namespace Kopi
 					}
 					foreach (string folder in uniqueFolders)
 					{
-						CompareFolders(Path.Combine(a_src, folder), Path.Combine(a_dst, folder));
+						CompareFolders(a_mapping, Path.Combine(a_src, folder), Path.Combine(a_dst, folder));
 					}
 				}
 				else
@@ -172,7 +172,7 @@ namespace Kopi
 			}
 		}
 
-		private void CompareFiles(string a_src, string a_dst)
+		private void CompareFiles(Mapping a_mapping, string a_src, string a_dst)
 		{
 			if (m_stop)
 			{
@@ -182,50 +182,50 @@ namespace Kopi
 			FileInfo srcFileInfo = new FileInfo(a_src);
 			FileInfo dstFileInfo = new FileInfo(a_dst);
 			if (srcFileInfo.Exists)
-			{
-				if (dstFileInfo.Exists)
-				{
-					// compare size and timestamp, and if different, copy from src to dst
-					DateTime srcDT;
-					try
-					{
-						srcDT = srcFileInfo.LastWriteTime;
-					}
-					catch(ArgumentOutOfRangeException)
-					{
-						srcFileInfo.LastWriteTime = DateTime.Now;
-						srcDT = srcFileInfo.LastWriteTime;
-					}
-					DateTime dstDT;
-					try
-					{
-						dstDT = dstFileInfo.LastWriteTime;
-					}
-					catch(ArgumentOutOfRangeException)
-					{
-						dstFileInfo.LastWriteTime = DateTime.Now;
-						dstDT = dstFileInfo.LastWriteTime;
-					}
+            {
+                if (!IgnoreFile(a_src))
+                {
+                    if (dstFileInfo.Exists)
+                    {
+                        // compare size and timestamp, and if different, copy from src to dst
+                        DateTime srcDT;
+                        try
+                        {
+                            srcDT = srcFileInfo.LastWriteTime;
+                        }
+                        catch (ArgumentOutOfRangeException)
+                        {
+                            srcFileInfo.LastWriteTime = DateTime.Now;
+                            srcDT = srcFileInfo.LastWriteTime;
+                        }
+                        DateTime dstDT;
+                        try
+                        {
+                            dstDT = dstFileInfo.LastWriteTime;
+                        }
+                        catch (ArgumentOutOfRangeException)
+                        {
+                            dstFileInfo.LastWriteTime = DateTime.Now;
+                            dstDT = dstFileInfo.LastWriteTime;
+                        }
 
-					// This will copy back the dst file times to the src, in the case where the src has had theirs reset by Box.com or something.
-					//if (srcFileInfo.Length == dstFileInfo.Length && srcFileInfo.LastWriteTime != dstFileInfo.LastWriteTime)
-					//{
-					//    File.SetCreationTime(a_src, dstFileInfo.CreationTime);
-					//    File.SetLastWriteTime(a_src, dstFileInfo.LastWriteTime);
-					//}
-					//else
-					if (srcDT != dstDT || srcFileInfo.Length != dstFileInfo.Length)
-					{
-						Log("Updating \"" + a_dst + "\".");
-						BackupFile(a_dst);
-						CopyFile(a_src, a_dst);
-					}
-				}
-				else
-				{
-					Log("Copying to \"" + a_dst + "\".");
-					CopyFile(a_src, a_dst);
-				}
+                        if ((!a_mapping.IgnoreTimestamp && srcDT != dstDT) || srcFileInfo.Length != dstFileInfo.Length)
+                        {
+                            Log("Updating \"" + a_dst + "\".");
+                            BackupFile(a_dst);
+                            CopyFile(a_src, a_dst);
+                        }
+                    }
+                    else
+                    {
+                        Log("Copying to \"" + a_dst + "\".");
+                        CopyFile(a_src, a_dst);
+                    }
+                }
+                else
+                {
+                    Log("Ignoring \"" + a_src + "\".");
+                }
 			}
 			else if(dstFileInfo.Exists)
 			{
@@ -279,7 +279,12 @@ namespace Kopi
 				{
 					return;
 				}
-				CopyFile(Path.Combine(a_src, Path.GetFileName(file)), Path.Combine(a_dst, Path.GetFileName(file)));
+
+                string a_srcFilePath = Path.Combine(a_src, Path.GetFileName(file));
+                if (!IgnoreFile(a_srcFilePath))
+                {
+                    CopyFile(a_srcFilePath, Path.Combine(a_dst, Path.GetFileName(file)));
+                }
 			}
 
 			// Copy each folder into its new directory.
@@ -324,5 +329,10 @@ namespace Kopi
 
             File.Copy(a_src, a_dst, false);
 		}
+
+        private bool IgnoreFile(string a_src)
+        {
+            return Path.GetFileName(a_src).Equals("desktop.ini", StringComparison.CurrentCultureIgnoreCase);
+        }
 	}
 }
