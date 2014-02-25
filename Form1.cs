@@ -14,6 +14,7 @@ namespace Kopi
 {
 	public partial class Form1 : Form
 	{
+        private Copyer m_copyer;
 		public Form1()
 		{
 			InitializeComponent();
@@ -42,8 +43,7 @@ namespace Kopi
 			textBoxLog.Text = "Add pairs of source and destination folders by clicking in the cells, or load a pre-saved config.";
 
 			// setup delegates
-			Copyer.s_logDelegate = Log;
-			Copyer.s_stoppedDelegate = Stopped;
+			m_copyer = new Copyer(Log, Stopped);
 		}
 
 		private void buttonBackup_Click(object sender, EventArgs e)
@@ -59,7 +59,7 @@ namespace Kopi
 			}
 
 			// Start the copyer thread
-			if (Copyer.Start(settings, this.checkBoxDryRun.Checked))
+			if (m_copyer.Start(settings, this.checkBoxDryRun.Checked))
 			{
 				buttonBackup.Enabled = false;
 				buttonCancel.Enabled = true;
@@ -68,7 +68,7 @@ namespace Kopi
 
 		private void buttonCancel_Click(object sender, EventArgs e)
 		{
-			Copyer.Stop();
+			m_copyer.Stop();
 		}
 
 		private delegate void LogDelegate();

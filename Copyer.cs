@@ -9,13 +9,15 @@ namespace Kopi
 {
 	class Copyer
 	{
-		public static string s_backupFolder = "$SBV$";
-		public delegate void LogDelegate(string a_str);
-		public static LogDelegate s_logDelegate = delegate(string a_str) { };
-		public delegate void EventDelegate();
-		public static EventDelegate s_stoppedDelegate = delegate() { };
+        public delegate void LogDelegate(string a_str);
+        public delegate void EventDelegate();
+        public Copyer(LogDelegate a_log, EventDelegate a_stopped)
+        {
+            m_logDelegate = a_log;
+            m_stoppedDelegate = a_stopped;
+        }
 
-		public static bool Start(Settings a_settings, bool a_dryRun)
+		public bool Start(Settings a_settings, bool a_dryRun)
 		{
 			bool start = true;
 			foreach (Mapping mapping in a_settings.Mappings)
@@ -45,10 +47,10 @@ namespace Kopi
 			{
 				Log("Starting backup.");
 				DateTime now = DateTime.Now;
-				s_startTimeStamp = (now.Year % 100).ToString("D2") + now.Month.ToString("D2") + now.Day.ToString("D2") + now.Hour.ToString("D2") + now.Minute.ToString("D2") + now.Second.ToString("D2");
-				s_settings = a_settings;
-				s_dryRun = a_dryRun;
-				s_stop = false;
+				m_startTimeStamp = (now.Year % 100).ToString("D2") + now.Month.ToString("D2") + now.Day.ToString("D2") + now.Hour.ToString("D2") + now.Minute.ToString("D2") + now.Second.ToString("D2");
+				m_settings = a_settings;
+				m_dryRun = a_dryRun;
+				m_stop = false;
 				Thread thread = new Thread(new ThreadStart(BackupThread));
 				thread.Start();
 				return true;
@@ -60,18 +62,18 @@ namespace Kopi
 			return false;
 		}
 
-		public static void Stop()
+		public void Stop()
 		{
-			s_stop = true;
+			m_stop = true;
 		}
 
-		private static void BackupThread()
+		private void BackupThread()
 		{
-			foreach (Mapping mapping in s_settings.Mappings)
+			foreach (Mapping mapping in m_settings.Mappings)
 			{
 				CompareFolders(mapping.Source, mapping.Destination);
 			}
-			if (s_stop)
+			if (m_stop)
 			{
 				Log("Backup cancelled.");
 			}
@@ -79,22 +81,25 @@ namespace Kopi
 			{
 				Log("Backup complete.");
 			}
-			s_stoppedDelegate();
+			m_stoppedDelegate();
 		}
 
-		private static Settings s_settings;
-        private static bool s_dryRun;
-		private static bool s_stop;
-		private static string s_startTimeStamp;
+        private const string BACKUP_FOLDER = "$SBV$";
+        private LogDelegate m_logDelegate = delegate(string a_str) { };
+        private EventDelegate m_stoppedDelegate = delegate() { };
+		private Settings m_settings;
+        private bool m_dryRun;
+		private bool m_stop;
+		private string m_startTimeStamp;
 
-		private static void Log(string a_str)
+		private void Log(string a_str)
 		{
-			s_logDelegate(a_str);
+			m_logDelegate(a_str);
 		}
 
-		private static void CompareFolders(string a_src, string a_dst)
+		private void CompareFolders(string a_src, string a_dst)
 		{
-			if (s_stop)
+			if (m_stop)
 			{
 				return;
 			}
@@ -135,7 +140,7 @@ namespace Kopi
 					{
 						// ignore backup folder in source folders, otherwise we do weird things to the destination backup folder
 						string f = Path.GetFileName(folder);
-						if (f != s_backupFolder)  
+						if (f != BACKUP_FOLDER)  
 						{
 							uniqueFolders.Add(f);
 						}
@@ -144,7 +149,7 @@ namespace Kopi
 					{
 						// ignore backup folder in destination folders of course, otherwise we'd delete it (because it shouldn't exist normally in the source)
 						string f = Path.GetFileName(folder);
-						if(f != s_backupFolder && !uniqueFolders.Contains(f))
+						if(f != BACKUP_FOLDER && !uniqueFolders.Contains(f))
 						{
 							uniqueFolders.Add(f);
 						}
@@ -167,9 +172,9 @@ namespace Kopi
 			}
 		}
 
-		private static void CompareFiles(string a_src, string a_dst)
+		private void CompareFiles(string a_src, string a_dst)
 		{
-			if (s_stop)
+			if (m_stop)
 			{
 				return;
 			}
@@ -230,15 +235,15 @@ namespace Kopi
 		}
 
 		// assumes a_folder exists
-		private static void BackupFolder(string a_folder)
+		private void BackupFolder(string a_folder)
 		{
-            if (s_stop || s_dryRun)
+            if (m_stop || m_dryRun)
             {
                 return;
             }
 
 			// create backup location and make it hidden
-			string backup = Path.Combine(Path.GetDirectoryName(a_folder), s_backupFolder);
+			string backup = Path.Combine(Path.GetDirectoryName(a_folder), BACKUP_FOLDER);
 			if (!Directory.Exists(backup))
 			{
 				Directory.CreateDirectory(backup);
@@ -250,12 +255,12 @@ namespace Kopi
 			}
 
 			// move folder to backup location
-			Directory.Move(a_folder, Path.Combine(backup, s_startTimeStamp + "." + Path.GetFileName(a_folder)));
+			Directory.Move(a_folder, Path.Combine(backup, m_startTimeStamp + "." + Path.GetFileName(a_folder)));
 		}
 
-		private static void CopyFolder(string a_src, string a_dst)
+		private void CopyFolder(string a_src, string a_dst)
 		{
-			if (s_stop || s_dryRun)
+			if (m_stop || m_dryRun)
 			{
 				return;
 			}
@@ -270,7 +275,7 @@ namespace Kopi
 			string[] srcFiles = Directory.GetFiles(a_src);
 			foreach(string file in srcFiles)
 			{
-				if (s_stop)
+				if (m_stop)
 				{
 					return;
 				}
@@ -286,15 +291,15 @@ namespace Kopi
 		}
 
 		// assumes a_file exists
-		private static void BackupFile(string a_file)
+		private void BackupFile(string a_file)
 		{
-            if (s_stop || s_dryRun)
+            if (m_stop || m_dryRun)
             {
                 return;
             }
 
 			// create backup location and make it hidden
-			string backup = Path.Combine(Path.GetDirectoryName(a_file), s_backupFolder);
+			string backup = Path.Combine(Path.GetDirectoryName(a_file), BACKUP_FOLDER);
 			if (!Directory.Exists(backup))
 			{
 				Directory.CreateDirectory(backup);
@@ -306,13 +311,13 @@ namespace Kopi
 			}
 
 			// move file to backup location
-			File.Move(a_file, Path.Combine(backup, s_startTimeStamp + "." + Path.GetFileName(a_file)));
+			File.Move(a_file, Path.Combine(backup, m_startTimeStamp + "." + Path.GetFileName(a_file)));
 		}
 
 		// assumes a_src exists, and a_dst does not exist
-		private static void CopyFile(string a_src, string a_dst)
+		private void CopyFile(string a_src, string a_dst)
 		{
-            if (s_stop || s_dryRun)
+            if (m_stop || m_dryRun)
             {
                 return;
             }
