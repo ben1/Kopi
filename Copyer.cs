@@ -165,10 +165,10 @@ namespace Kopi
 					CopyFolder(a_src, a_dst);
 				}
 			}
-			else if(dstExists)
+			else if(dstExists && !a_mapping.NeverDelete)
 			{
 				Log("Removing \"" + a_dst + "\".");
-				BackupFolder(a_dst);
+				RemoveFolder(a_dst, !a_mapping.NeverBackup);
 			}
 		}
 
@@ -212,7 +212,7 @@ namespace Kopi
                         if ((!a_mapping.IgnoreTimestamp && srcDT != dstDT) || srcFileInfo.Length != dstFileInfo.Length)
                         {
                             Log("Updating \"" + a_dst + "\".");
-                            BackupFile(a_dst);
+                            RemoveFile(a_dst, !a_mapping.NeverBackup);
                             CopyFile(a_src, a_dst);
                         }
                     }
@@ -222,40 +222,43 @@ namespace Kopi
                         CopyFile(a_src, a_dst);
                     }
                 }
-                else
-                {
-                    Log("Ignoring \"" + a_src + "\".");
-                }
 			}
-			else if(dstFileInfo.Exists)
+			else if(dstFileInfo.Exists && !a_mapping.NeverDelete)
 			{
 				Log("Removing \"" + a_dst + "\".");
-				BackupFile(a_dst);
+				RemoveFile(a_dst, !a_mapping.NeverBackup);
 			}
 		}
 
 		// assumes a_folder exists
-		private void BackupFolder(string a_folder)
+		private void RemoveFolder(string a_folder, bool a_backup)
 		{
             if (m_stop || m_dryRun)
             {
                 return;
             }
 
-			// create backup location and make it hidden
-			string backup = Path.Combine(Path.GetDirectoryName(a_folder), BACKUP_FOLDER);
-			if (!Directory.Exists(backup))
-			{
-				Directory.CreateDirectory(backup);
-				DirectoryInfo di = new DirectoryInfo(backup);
-				if((di.Attributes & FileAttributes.Hidden) != FileAttributes.Hidden)
-				{
-					di.Attributes = di.Attributes | FileAttributes.Hidden;
-				}
-			}
+            if (a_backup)
+            {
+                // create backup location and make it hidden
+                string backup = Path.Combine(Path.GetDirectoryName(a_folder), BACKUP_FOLDER);
+                if (!Directory.Exists(backup))
+                {
+                    Directory.CreateDirectory(backup);
+                    DirectoryInfo di = new DirectoryInfo(backup);
+                    if ((di.Attributes & FileAttributes.Hidden) != FileAttributes.Hidden)
+                    {
+                        di.Attributes = di.Attributes | FileAttributes.Hidden;
+                    }
+                }
 
-			// move folder to backup location
-			Directory.Move(a_folder, Path.Combine(backup, m_startTimeStamp + "." + Path.GetFileName(a_folder)));
+                // move folder to backup location
+                Directory.Move(a_folder, Path.Combine(backup, m_startTimeStamp + "." + Path.GetFileName(a_folder)));
+            }
+            else
+            {
+                Directory.Delete(a_folder);
+            }
 		}
 
 		private void CopyFolder(string a_src, string a_dst)
@@ -296,27 +299,34 @@ namespace Kopi
 		}
 
 		// assumes a_file exists
-		private void BackupFile(string a_file)
+		private void RemoveFile(string a_file, bool a_backup)
 		{
             if (m_stop || m_dryRun)
             {
                 return;
             }
 
-			// create backup location and make it hidden
-			string backup = Path.Combine(Path.GetDirectoryName(a_file), BACKUP_FOLDER);
-			if (!Directory.Exists(backup))
-			{
-				Directory.CreateDirectory(backup);
-				DirectoryInfo di = new DirectoryInfo(backup);
-				if((di.Attributes & FileAttributes.Hidden) != FileAttributes.Hidden)
-				{
-					di.Attributes = di.Attributes | FileAttributes.Hidden;
-				}
-			}
+            if (a_backup)
+            {
+                // create backup location and make it hidden
+                string backup = Path.Combine(Path.GetDirectoryName(a_file), BACKUP_FOLDER);
+                if (!Directory.Exists(backup))
+                {
+                    Directory.CreateDirectory(backup);
+                    DirectoryInfo di = new DirectoryInfo(backup);
+                    if ((di.Attributes & FileAttributes.Hidden) != FileAttributes.Hidden)
+                    {
+                        di.Attributes = di.Attributes | FileAttributes.Hidden;
+                    }
+                }
 
-			// move file to backup location
-			File.Move(a_file, Path.Combine(backup, m_startTimeStamp + "." + Path.GetFileName(a_file)));
+                // move file to backup location
+                File.Move(a_file, Path.Combine(backup, m_startTimeStamp + "." + Path.GetFileName(a_file)));
+            }
+            else
+            {
+                File.Delete(a_file);
+            }
 		}
 
 		// assumes a_src exists, and a_dst does not exist
