@@ -1,3 +1,6 @@
 /*.suo
 /obj
 /bin/Debug
+/bin/Release
+!/bin/Release/Kopi.exe
+

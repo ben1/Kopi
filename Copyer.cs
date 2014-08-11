@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.VisualBasic.FileIO;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -84,7 +85,6 @@ namespace Kopi
 			m_stoppedDelegate();
 		}
 
-        private const string BACKUP_FOLDER = "$SBV$";
         private LogDelegate m_logDelegate = delegate(string a_str) { };
         private EventDelegate m_stoppedDelegate = delegate() { };
 		private Settings m_settings;
@@ -114,18 +114,14 @@ namespace Kopi
 					// recurse all files in a_src and a_dst
 					string[] srcFiles = Directory.GetFiles(a_src);
 					string[] dstFiles = Directory.GetFiles(a_dst);
-					List<string> uniqueFiles = new List<string>(srcFiles.Length);
+					HashSet<string> uniqueFiles = new HashSet<string>();
 					foreach(string file in srcFiles)
 					{
 						uniqueFiles.Add(Path.GetFileName(file));
 					}
 					foreach(string file in dstFiles)
 					{
-						string f = Path.GetFileName(file);
-						if(!uniqueFiles.Contains(f))
-						{
-							uniqueFiles.Add(f);
-						}
+						uniqueFiles.Add(Path.GetFileName(file));
 					}
 					foreach(string file in uniqueFiles)
 					{
@@ -135,24 +131,14 @@ namespace Kopi
 					// recurse all folders in a_src and a_dst
 					string[] srcFolders = Directory.GetDirectories(a_src);
 					string[] dstFolders = Directory.GetDirectories(a_dst);
-					List<string> uniqueFolders = new List<string>(srcFolders.Length);
+                    HashSet<string> uniqueFolders = new HashSet<string>();
 					foreach (string folder in srcFolders)
 					{
-						// ignore backup folder in source folders, otherwise we do weird things to the destination backup folder
-						string f = Path.GetFileName(folder);
-						if (f != BACKUP_FOLDER)  
-						{
-							uniqueFolders.Add(f);
-						}
+                        uniqueFolders.Add(Path.GetFileName(folder));
 					}
 					foreach (string folder in dstFolders)
 					{
-						// ignore backup folder in destination folders of course, otherwise we'd delete it (because it shouldn't exist normally in the source)
-						string f = Path.GetFileName(folder);
-						if(f != BACKUP_FOLDER && !uniqueFolders.Contains(f))
-						{
-							uniqueFolders.Add(f);
-						}
+						uniqueFolders.Add(Path.GetFileName(folder));
 					}
 					foreach (string folder in uniqueFolders)
 					{
@@ -240,20 +226,8 @@ namespace Kopi
 
             if (a_backup)
             {
-                // create backup location and make it hidden
-                string backup = Path.Combine(Path.GetDirectoryName(a_folder), BACKUP_FOLDER);
-                if (!Directory.Exists(backup))
-                {
-                    Directory.CreateDirectory(backup);
-                    DirectoryInfo di = new DirectoryInfo(backup);
-                    if ((di.Attributes & FileAttributes.Hidden) != FileAttributes.Hidden)
-                    {
-                        di.Attributes = di.Attributes | FileAttributes.Hidden;
-                    }
-                }
-
-                // move folder to backup location
-                Directory.Move(a_folder, Path.Combine(backup, m_startTimeStamp + "." + Path.GetFileName(a_folder)));
+                // move folder to recycle bin
+                FileSystem.DeleteDirectory(a_folder, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
             }
             else
             {
@@ -308,20 +282,8 @@ namespace Kopi
 
             if (a_backup)
             {
-                // create backup location and make it hidden
-                string backup = Path.Combine(Path.GetDirectoryName(a_file), BACKUP_FOLDER);
-                if (!Directory.Exists(backup))
-                {
-                    Directory.CreateDirectory(backup);
-                    DirectoryInfo di = new DirectoryInfo(backup);
-                    if ((di.Attributes & FileAttributes.Hidden) != FileAttributes.Hidden)
-                    {
-                        di.Attributes = di.Attributes | FileAttributes.Hidden;
-                    }
-                }
-
-                // move file to backup location
-                File.Move(a_file, Path.Combine(backup, m_startTimeStamp + "." + Path.GetFileName(a_file)));
+                // move file to recycle bin
+                FileSystem.DeleteFile(a_file, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
             }
             else
             {

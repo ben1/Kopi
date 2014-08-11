@@ -34,20 +34,9 @@ If folder exists on both, recurse.
 If file exists on both, compare size, modified stamp. If not equal, move B to backup location and copy entire file from A to B.
 
 
-Copy files in use
------------------
-Seems to just work.
-
-
-Backup when replacing files
----------------------------
-Create a special folder $SBV$, make it hidden. 
-Move old files there, but prefix with timestamp of when copy was started. 
-e.g. 090616142627.TO DO.doc
-
-Settings
-----------
-Persistent config for a list of folders to backup. 
+Can copy files in use
+Save copy to recycle bin when replacing files
+Persistent config for a list of folders to backup with options. 
 
 
 
