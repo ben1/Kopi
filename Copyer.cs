@@ -11,6 +11,15 @@ namespace Kopi
 {
     class Copyer
     {
+        public class Context
+        {
+            public LogDelegate LogDelegate { get; set; }
+            public ProgressDelegate ProgressDelegate { get; set; }
+            public bool DryRun { get; set; }
+            public bool NeverDelete { get; set; }
+            public bool NeverBackup { get; set; }
+        }
+
         public delegate void LogDelegate(string a_str);
         public delegate void EventDelegate();
         public delegate void ProgressDelegate(int a_progressPercent);
@@ -77,30 +86,57 @@ namespace Kopi
         public void Stop()
         {
             m_stop = true;
+            foreach (Updates updates in m_updates)
+            {
+                updates.Stop();
+            }
         }
 
         private void BackupThread()
         {
+            Dictionary<string,long> spaceNeeded = new Dictionary<string,long>();
             foreach (Mapping mapping in m_settings.Mappings)
             {
-                m_updates = new Updates(!mapping.NeverBackup);
+                Context context = new Context();
+                context.LogDelegate = m_logDelegate;
+                context.ProgressDelegate = m_progressDelegate;
+                context.DryRun = m_dryRun;
+                context.NeverBackup = mapping.NeverBackup;
+                context.NeverDelete = mapping.NeverDelete;
+
+                m_updates.Add(new Updates(context));
                 CompareFolders(mapping, mapping.Source, mapping.Destination);
-                if (!m_stop)
+                long bytesRequired = 0;
+                spaceNeeded.TryGetValue(mapping.Destination.Substring(0, 1).ToLower(), out bytesRequired);
+                bytesRequired += m_updates.Last().GetBytesRequired();
+                spaceNeeded[mapping.Destination.Substring(0, 1).ToLower()] = bytesRequired;
+                if (m_stop)
                 {
-                    // calculate disk space needed
-                    long spaceNeeded = m_updates.GetBytesRequired();
-                    DriveInfo driveInfo = new DriveInfo(mapping.Destination.Substring(0, 1));
-                    if (spaceNeeded >= driveInfo.AvailableFreeSpace)
+                    break;
+                }
+            }
+            if(!m_stop)
+            {
+                foreach(KeyValuePair<string,long> kvp in spaceNeeded)
+                {
+                    DriveInfo driveInfo = new DriveInfo(kvp.Key);
+                    if (kvp.Value >= driveInfo.AvailableFreeSpace)
                     {
-                        string message = "Skipping mapping from " + mapping.Source + " to " + mapping.Destination + " because it would exceed available disk space by " + (spaceNeeded - driveInfo.AvailableFreeSpace) + " bytes.";
+                        string message = "Not synchronizing because it would exceed available disk space on drive letter " + kvp.Key + " by " + (kvp.Value - driveInfo.AvailableFreeSpace) + " bytes.";
                         Log(message);
                         MessageBox.Show(message);
+                        spaceNeeded.Remove(kvp.Key);
+                        m_stop = true;
+                        break;
                     }
-                    else if(!m_dryRun)
+                }
+                foreach (Updates updates in m_updates)
+                {
+                    if (m_stop)
                     {
-                        // copy everything
-                        m_updates.Execute(m_progressDelegate);
+                        break;
                     }
+                    updates.Execute();
                 }
             }
             if (m_stop)
@@ -120,7 +156,7 @@ namespace Kopi
         private Settings m_settings;
         private bool m_dryRun;
         private bool m_stop;
-        private Updates m_updates;
+        private List<Updates> m_updates = new List<Updates>();
 
 
         private void Log(string a_str)
@@ -178,15 +214,13 @@ namespace Kopi
                 }
                 else
                 {
-                    Log("Copying to \"" + a_dst + "\".");
-                    m_updates.AddFolder(a_dst);
+                    m_updates.Last().AddFolder(a_dst);
                     CopyFolder(a_src, a_dst);
                 }
             }
-            else if(dstExists && !a_mapping.NeverDelete)
+            else if(dstExists)
             {
-                Log("Removing \"" + a_dst + "\".");
-                m_updates.RemoveFolder(a_dst);
+                m_updates.Last().RemoveFolder(a_dst);
                 RemoveFolder(a_dst);
             }
         }
@@ -209,21 +243,18 @@ namespace Kopi
                         // compare size and timestamp, and if different, copy from src to dst
                         if ((!a_mapping.IgnoreTimestamp && srcFileInfo.LastWriteTime != dstFileInfo.LastWriteTime) || srcFileInfo.Length != dstFileInfo.Length)
                         {
-                            Log("Updating \"" + a_dst + "\".");
-                            m_updates.Modify(a_src, a_dst);
+                            m_updates.Last().Modify(a_src, a_dst);
                         }
                     }
                     else
                     {
-                        Log("Copying to \"" + a_dst + "\".");
-                        m_updates.Copy(a_src, a_dst);
+                        m_updates.Last().Copy(a_src, a_dst);
                     }
                 }
             }
-            else if(dstFileInfo.Exists && !a_mapping.NeverDelete)
+            else if(dstFileInfo.Exists)
             {
-                Log("Removing \"" + a_dst + "\".");
-                m_updates.DeleteDestination(a_dst);
+                m_updates.Last().DeleteDestination(a_dst);
             }
         }
 
@@ -243,13 +274,14 @@ namespace Kopi
                 {
                     return;
                 }
-                m_updates.DeleteDestination(file);
+                m_updates.Last().DeleteDestination(file);
             }
 
             // Recurse into folders being deleted.
             string[] dstFolders = Directory.GetDirectories(a_folder);
             foreach (string folder in dstFolders)
             {
+                // we don't need to call m_updates.RemoveFolder here because the parent removes recursively
                 RemoveFolder(folder);
             }
         }
@@ -272,7 +304,7 @@ namespace Kopi
 
                 if (!IgnoreFile(file))
                 {
-                    m_updates.Copy(file, Path.Combine(a_dst, Path.GetFileName(file)));
+                    m_updates.Last().Copy(file, Path.Combine(a_dst, Path.GetFileName(file)));
                 }
             }
 
@@ -280,6 +312,7 @@ namespace Kopi
             string[] srcFolders = Directory.GetDirectories(a_src);
             foreach (string folder in srcFolders)
             {
+                m_updates.Last().AddFolder(Path.Combine(a_dst, Path.GetFileName(folder)));
                 CopyFolder(folder, Path.Combine(a_dst, Path.GetFileName(folder)));
             }
         }

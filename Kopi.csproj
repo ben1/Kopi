@@ -53,13 +53,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AddFolder.cs" />
-    <Compile Include="Addition.cs" />
+    <Compile Include="operations\AddFolder.cs" />
+    <Compile Include="operations\Addition.cs" />
     <Compile Include="Copyer.cs" />
-    <Compile Include="Deletion.cs" />
-    <Compile Include="RemoveFolder.cs" />
+    <Compile Include="operations\Deletion.cs" />
+    <Compile Include="operations\RemoveFolder.cs" />
     <Compile Include="UniqueFile.cs" />
-    <Compile Include="Modification.cs" />
+    <Compile Include="operations\Modification.cs" />
     <Compile Include="PotentialMove.cs" />
     <Compile Include="Settings.cs" />
     <Compile Include="MainForm.cs">

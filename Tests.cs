@@ -25,6 +25,7 @@ namespace Kopi
                 Prepare();
                 Sync();
                 Check();
+                DeleteTestFolders();
                 m_logDelegate("Completed Tests");
             }
             catch(Exception e)
@@ -40,21 +41,7 @@ namespace Kopi
 
         public void Prepare()
         {
-            // clean folders
-            try
-            {
-                Directory.Delete(m_source, true);
-            }
-            catch (DirectoryNotFoundException)
-            {
-            }
-            try
-            {
-                Directory.Delete(m_destination, true);
-            }
-            catch (DirectoryNotFoundException)
-            {
-            }
+            DeleteTestFolders();
             Directory.CreateDirectory(m_source);
             Directory.CreateDirectory(m_destination);
 
@@ -170,7 +157,7 @@ namespace Kopi
             CreateFile(a_path, a_size);
             if (a_lastModifiedTime != null)
             {
-                File.SetLastAccessTimeUtc(a_path, a_lastModifiedTime);
+                File.SetLastWriteTimeUtc(a_path, a_lastModifiedTime);
             }
         }
 
@@ -188,6 +175,24 @@ namespace Kopi
                 }
             }
             fs.Close();
+        }
+
+        void DeleteTestFolders()
+        {
+            try
+            {
+                Directory.Delete(m_source, true);
+            }
+            catch (DirectoryNotFoundException)
+            {
+            }
+            try
+            {
+                Directory.Delete(m_destination, true);
+            }
+            catch (DirectoryNotFoundException)
+            {
+            }
         }
 
         void Fail(string a_message)

@@ -10,15 +10,20 @@ namespace Kopi
     /// </summary>
     class Updates
     {
-        public Updates(bool a_backup)
+        public Updates(Copyer.Context a_context)
         {
-            m_backup = a_backup;
+            m_context = a_context;
+        }
+
+        public void Stop()
+        {
+            m_stop = true;
         }
 
         public void Copy(string a_sourcePath, string a_destinationPath)
         {
             // add to list of additions
-            Addition addition = new Addition(a_sourcePath, a_destinationPath);
+            Addition addition = new Addition(m_context, a_sourcePath, a_destinationPath);
             m_additions.Add(addition);
 
             // keep a record of the addition indexed by unique properties of the file
@@ -34,7 +39,7 @@ namespace Kopi
 
         public void DeleteDestination(string a_destinationPath)
         {
-            Deletion deletion = new Deletion(a_destinationPath);
+            Deletion deletion = new Deletion(m_context, a_destinationPath);
             m_deletions.Add(deletion);
 
             // keep a record of the deletion indexed by unique properties of the file
@@ -45,22 +50,22 @@ namespace Kopi
                 potentialMove = new PotentialMove();
                 m_potentialMoves.Add(key, potentialMove);
             }
-            potentialMove.Remove();
+            potentialMove.Remove(deletion.Path);
         }
 
         public void Modify(string a_sourcePath, string a_destinationPath)
         {
-            m_modifications.Add(new Modification(a_sourcePath, a_destinationPath));
+            m_modifications.Add(new Modification(m_context, a_sourcePath, a_destinationPath));
         }
 
         public void AddFolder(string a_path)
         {
-            m_addFolders.Add(new AddFolder(a_path));
+            m_addFolders.Add(new AddFolder(m_context, a_path));
         }
 
         public void RemoveFolder(string a_path)
         {
-            m_removeFolders.Add(new RemoveFolder(a_path));
+            m_removeFolders.Add(new RemoveFolder(m_context, a_path));
         }
 
         public long GetBytesRequired()
@@ -68,7 +73,7 @@ namespace Kopi
             long bytes = 0;
             foreach (Modification modification in m_modifications)
             {
-                bytes += modification.GetBytesRequired(m_backup);
+                bytes += modification.GetBytesRequired();
             }
             foreach (Addition addition in m_additions)
             {
@@ -80,7 +85,7 @@ namespace Kopi
             }
             foreach (Deletion deletion in m_deletions)
             {
-                if (!m_backup)
+                if (!m_context.NeverDelete && m_context.NeverBackup)
                 {
                     UniqueFile key = new UniqueFile(deletion.Name, deletion.Size, deletion.LastModifiedTime);
                     if (!m_potentialMoves[key].IsValid())
@@ -97,7 +102,7 @@ namespace Kopi
             long bytes = 0;
             foreach (Modification modification in m_modifications)
             {
-                bytes += modification.GetBytesRequired(m_backup);
+                bytes += modification.SourceSize;
             }
             foreach (Addition addition in m_additions)
             {
@@ -110,33 +115,45 @@ namespace Kopi
             return bytes;
         }
 
-        public void Execute(Copyer.ProgressDelegate a_progressDelegate)
+        public long Execute()
         {
             long totalBytes = GetBytesToBeCopied() + 1; // Add to avoid divide by 0. It's ok to only report 99% because we set 100% at the end.
             long bytesSoFar = 0;
-            a_progressDelegate((int)(bytesSoFar * 100 / totalBytes));
+            m_context.ProgressDelegate((int)(bytesSoFar * 100 / totalBytes));
 
             foreach (Modification modification in m_modifications)
             {
-                modification.Execute(m_backup);
-                bytesSoFar += modification.GetBytesRequired(m_backup);
-                a_progressDelegate((int)(bytesSoFar * 100 / totalBytes));
+                if (m_stop)
+                {
+                    return bytesSoFar;
+                }
+                modification.Execute();
+                bytesSoFar += modification.SourceSize;
+                m_context.ProgressDelegate((int)(bytesSoFar * 100 / totalBytes));
             }
 
             foreach (Addition addition in m_additions)
             {
+                if (m_stop)
+                {
+                    return bytesSoFar;
+                }
                 // copy files that aren't part of a move
                 UniqueFile key = new UniqueFile(addition.Name, addition.Size, addition.LastModifiedTime);
                 if (!m_potentialMoves[key].IsValid())
                 {
                     addition.Execute();
-                    a_progressDelegate((int)(bytesSoFar * 100 / totalBytes));
                     bytesSoFar += addition.Size;
+                    m_context.ProgressDelegate((int)(bytesSoFar * 100 / totalBytes));
                 }
             }
 
             foreach (Deletion deletion in m_deletions)
             {
+                if (m_stop)
+                {
+                    return bytesSoFar;
+                }
                 // check for valid moves, and either do the move or the delete
                 UniqueFile key = new UniqueFile(deletion.Name, deletion.Size, deletion.LastModifiedTime);
                 PotentialMove potentialMove = m_potentialMoves[key];
@@ -144,26 +161,36 @@ namespace Kopi
                 {
                     deletion.Move(potentialMove.MoveToPath);
                 }
-                else
+                else if (!m_context.NeverDelete)
                 {
-                    deletion.Execute(m_backup);
+                    deletion.Execute();
                 }
             }
 
             foreach (AddFolder addFolder in m_addFolders)
             {
+                if (m_stop)
+                {
+                    return bytesSoFar;
+                }
                 addFolder.Execute();
             }
 
             foreach (RemoveFolder removeFolder in m_removeFolders)
             {
+                if (m_stop)
+                {
+                    return bytesSoFar;
+                }
                 removeFolder.Execute();
             }
 
-            a_progressDelegate(100);
+            m_context.ProgressDelegate(100);
+            return bytesSoFar;
         }
 
-        private bool m_backup;
+        private bool m_stop = false;
+        private Copyer.Context m_context;
         private Dictionary<UniqueFile, PotentialMove> m_potentialMoves = new Dictionary<UniqueFile, PotentialMove>();
         private List<Addition> m_additions = new List<Addition>();
         private List<Deletion> m_deletions = new List<Deletion>();

@@ -24,16 +24,20 @@ namespace Kopi
             MoveToPath = a_moveToPath;
         }
 
-        public void Remove()
+        public void Remove(string a_moveFromPath)
         {
             m_removes++;
+            MoveFromPath = a_moveFromPath;
         }
 
         public bool IsValid()
         {
-            return m_adds == 1 && m_removes == 1;
+            // To do a move, they must have the same unique key (name, size, date), 
+            // and also be a single pair of add and remove, and also be on the same drive.
+            return m_adds == 1 && m_removes == 1 && MoveFromPath[0] == MoveToPath[0];
         }
 
+        public string MoveFromPath { get; set; }
         public string MoveToPath { get; set; }
 
         private int m_adds = 0;
